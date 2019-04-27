@@ -22,6 +22,9 @@ export class ActionButtons extends Component {
     openModal: PropTypes.func.isRequired,
     closeModal: PropTypes.func.isRequired,
     modalId: PropTypes.string.isRequired,
+    mappings: PropTypes.array,
+    singleConcept: PropTypes.array,
+
   };
 
   constructor(props) {
@@ -40,14 +43,28 @@ export class ActionButtons extends Component {
   addConcept = (conceptUrl, name) => {
     const { params } = this.props;
     const data = { data: { expressions: [conceptUrl] } };
-    this.props.addConcept(params, data, name);
+    if (this.props.mappings && this.props.mappings.length > 0) {
+      this.props.addConcept(params, data, name);
+      const conceptUrls = this.props.mappings.map(concept => concept.to_concept_url);
+      const newData = { data: { expressions: conceptUrls } };
+      if (this.props.singleConcept.mappings && this.props.singleConcept.mappings.length > 0) {
+        const secondLevelConceptUrls = this.props.singleConcept.mappings.map(
+          concept => concept.to_concept_url,
+        );
+        const newMapData = { data: { expressions: secondLevelConceptUrls } };
+        this.props.addConcept(params, newMapData, name, secondLevelConceptUrls);
+      } else {
+        this.props.addConcept(params, newData, name, conceptUrls);
+      }
+    } else {
+      this.props.addConcept(params, data, name);
+    }
   };
 
   addConceptButton = (id, url, display_name) => {
     this.setState({ disableButton: true });
     const { closeModal } = this.props;
     notify.show('Adding...', 'warning', 800);
-
     this.fetchPreview(id);
     closeModal();
     setTimeout(() => {
@@ -96,5 +113,10 @@ export class ActionButtons extends Component {
     );
   }
 }
+
+ActionButtons.defaultProps = {
+  mappings: null,
+  singleConcept: [],
+};
 
 export default ActionButtons;

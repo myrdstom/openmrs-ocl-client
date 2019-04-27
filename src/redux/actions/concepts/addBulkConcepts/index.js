@@ -11,6 +11,7 @@ import {
   SET_PERVIOUS_PAGE,
   SET_NEXT_PAGE,
   SET_CURRENT_PAGE,
+  GET_SINGLE_CIEL_CONCEPT,
 } from '../../types';
 
 export const fetchBulkConcepts = (currentPage, source = 'CIEL') => async (dispatch) => {
@@ -35,7 +36,6 @@ export const fetchFilteredConcepts = (source = 'CIEL', query = '', currentPage) 
     bulkConcepts: { datatypeList, classList },
   } = getState();
   let url = `orgs/${source}/sources/${source}/concepts/?${query}&limit=10&page=${currentPage}&verbose=true&includeMappings=1`;
-
   if (datatypeList.length > 0) {
     url = `${url}&datatype=${datatypeList.join(',')}`;
   }
@@ -71,15 +71,21 @@ export const previewConcept = id => (dispatch, getState) => {
   return dispatch(isSuccess(payload[0], PREVIEW_CONCEPT));
 };
 
-export const addConcept = (params, data, conceptName) => async (dispatch) => {
+export const addConcept = (params, data, conceptName, conceptUrls) => async (dispatch) => {
   const { type, typeName, collectionName } = params;
   const url = `${type}/${typeName}/collections/${collectionName}/references/`;
   const payload = await instance.put(url, data);
-  dispatch(isSuccess(payload.data, ADD_EXISTING_CONCEPTS));
+  await dispatch(isSuccess(payload.data, ADD_EXISTING_CONCEPTS));
   if (payload.data[0].added === true) {
     notify.show(`Just Added - ${conceptName}`, 'success', 3000);
   } else {
     notify.show(`${conceptName} already added`, 'error', 3000);
+  }
+  if (conceptUrls && conceptUrls.length > 0) {
+    conceptUrls.map(async (newUrl) => {
+      const response = await instance.get(newUrl);
+      await dispatch(isSuccess(response.data, GET_SINGLE_CIEL_CONCEPT));
+    });
   }
 };
 
@@ -93,4 +99,8 @@ export const setNextPage = () => async (dispatch) => {
 
 export const setPreviousPage = () => async (dispatch) => {
   dispatch(isSuccess(null, SET_PERVIOUS_PAGE));
+};
+
+export const getSingleConcept = () => async(dispatch) =>{
+  dispatch(isSuccess());
 };

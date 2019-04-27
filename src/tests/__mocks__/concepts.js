@@ -95,6 +95,15 @@ export const concept3 = {
   source: '12345678',
 };
 
+export const concept4 = {
+  ...concept3,
+  mappings: [
+    {
+      to_concept_url: '/orgs/CIEL/sources/CIEL/concepts/1366/',
+    },
+  ],
+};
+
 const concept = {
   id: '146869',
   external_id: '146869AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',

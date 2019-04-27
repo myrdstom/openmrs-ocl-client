@@ -7,6 +7,7 @@ import {
   SET_PERVIOUS_PAGE,
   SET_NEXT_PAGE,
   SET_CURRENT_PAGE,
+  GET_SINGLE_CIEL_CONCEPT,
 } from '../actions/types';
 import { normalizeList } from './util';
 import { classes as classList, DATA_TYPES as dataTypesList } from '../../components/dictionaryConcepts/components/helperFunction';
@@ -18,6 +19,7 @@ const userInitialState = {
   datatypeList: [],
   classList: [],
   currentPage: 1,
+  singleConcept: [],
 };
 const bulkConcepts = (state = userInitialState, action) => {
   switch (action.type) {
@@ -64,6 +66,11 @@ const bulkConcepts = (state = userInitialState, action) => {
       return {
         ...state,
         classList: normalizeList(action.payload, [action.payload, ...state.classList]),
+      };
+    case GET_SINGLE_CIEL_CONCEPT:
+      return {
+        ...state,
+        singleConcept: [...state.singleConcept, action.payload],
       };
     default:
       return state;
