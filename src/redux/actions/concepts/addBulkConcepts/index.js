@@ -60,6 +60,7 @@ export const previewConcept = id => (dispatch, getState) => {
   return dispatch(isSuccess(payload[0], PREVIEW_CONCEPT));
 };
 
+export const removeDuplicates = items => union(items);
 
 export const recursivelyFetchConceptMappings = async (fromConceptCodes, levelsToCheck) => {
   const startingConceptMappings = await api.mappings.fetchFromPublicSources(fromConceptCodes.join(','));
@@ -72,7 +73,12 @@ export const recursivelyFetchConceptMappings = async (fromConceptCodes, levelsTo
     const conceptMappings = await api.mappings.fetchFromPublicSources(toConceptCodes.join(','));
     mappingsList.push(conceptMappings.data);
   }
-  return union(...mappingsList).map(mapping => mapping.to_concept_url);
+  const toConceptUrls = union(...mappingsList).map((mapping) => {
+    const { to_concept_url, to_concept_code, to_source_url } = mapping;
+    return to_concept_url || `${to_source_url}concepts/${to_concept_code}/`;
+  });
+
+  return removeDuplicates(toConceptUrls);
 };
 
 export const addConcept = (params, data, conceptName, id) => async (dispatch) => {
