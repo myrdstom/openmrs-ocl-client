@@ -9,6 +9,7 @@ import {
 import {
   newConcept, existingConcept, mockSource, sampleConcept, newMappings,
 } from '../../__mocks__/concepts';
+import mockMappings from '../../__mocks__/mappings';
 import {
   INTERNAL_MAPPING_DEFAULT_SOURCE,
   CIEL_SOURCE_URL,
@@ -237,11 +238,11 @@ describe('Test suite for dictionary concepts components', () => {
     expect(submitForm.length).toEqual(1);
     wrapper.find('EditConcept').setState(sampleConcept);
     const instance = wrapper.find('EditConcept').instance();
-    const spy = jest.spyOn(instance, 'handleSubmit');
+    instance.handleSubmit = jest.fn();
     instance.forceUpdate();
     wrapper.update();
     submitForm.simulate('submit', { preventDefault: jest.fn() });
-    expect(spy).toHaveBeenCalled();
+    expect(instance.handleSubmit).toHaveBeenCalled();
   });
 
   it('it should handle submit event with invalid uuid', () => {
@@ -391,9 +392,13 @@ describe('Test suite for mappings on existing concepts', () => {
     createNewSetRow: createNewSetRowMock,
     ...editConceptProps,
   };
-  const wrapper = mount(<Router>
-    <EditConcept {...props} />
-  </Router>);
+  let wrapper;
+
+  beforeEach(() => {
+    wrapper = mount(<Router>
+      <EditConcept {...props} />
+    </Router>);
+  });
 
   it('should call addMappingRow function', () => {
     const instance = wrapper.find('EditConcept').instance();
@@ -435,7 +440,7 @@ describe('Test suite for mappings on existing concepts', () => {
       retired: false,
       url: '9999',
     };
-    expect(instance.state.mappings.filter(_ => _ != null).length).toEqual(2);
+    expect(instance.state.mappings.filter(_ => _ != null).length).toEqual(1);
     instance.removeUnsavedMappingRow(url);
     expect(instance.state.mappings[1].retired).toEqual(true);
   });
@@ -532,52 +537,28 @@ describe('Test suite for mappings on existing concepts', () => {
     expect(spy).toHaveBeenCalled();
   });
 
-  it('should call updateEventListener function', () => {
-    const event = {
-      target: {
-        tabIndex: 0,
-        name: 'to_concept_code',
-        value: 'a234',
-      },
-    };
-    const url = '1234';
-    const instance = wrapper.find('EditConcept').instance();
-    instance.updateEventListener({ target: { tabIndex: 0, name: INTERNAL_MAPPING_DEFAULT_SOURCE, value: '' } });
-    instance.updateEventListener(event, url);
-    expect(instance.state.mappings[0].to_concept_code).not.toEqual(null);
-  });
-
-  it('should call updateEventListener function on source change', () => {
-    const event = {
-      target: {
-        tabIndex: 0,
-        name: 'source',
-        value: '',
-      },
-    };
-    const url = '1234';
-    const { value } = event.target;
-    const instance = wrapper.find('EditConcept').instance();
-    const spy = jest.spyOn(instance, 'updateEventListener');
-    instance.updateEventListener({ target: { tabIndex: 0, name: INTERNAL_MAPPING_DEFAULT_SOURCE, value: '' } });
-    instance.updateEventListener(event, url);
-    wrapper.find('.form-control').at(0).simulate('select');
-    expect(spy).toHaveBeenCalled();
-    expect(instance.state.mappings[0].to_concept_code).toEqual(value);
-  });
-
-  it('should call updateEventListener function with internal mapping', () => {
+  it('should set the event value to right the mapping in state', (done) => {
     const event = {
       target: {
         tabIndex: 0,
         name: 'to_concept_name',
-        value: INTERNAL_MAPPING_DEFAULT_SOURCE,
+        value: 'newConceptName',
       },
     };
+    const mockMapping = newMappings[0];
+
+    const existingMappings = [
+      mockMapping,
+      { ...mockMapping, url: 'doesNotExist' },
+    ];
+
     const instance = wrapper.find('EditConcept').instance();
-    const spy = jest.spyOn(instance, 'updateEventListener');
-    instance.updateEventListener(event);
-    expect(spy).toHaveBeenCalled();
+
+    instance.setState({ mappings: existingMappings }, () => {
+      instance.updateEventListener(event, mockMapping.url);
+      expect(instance.state.mappings[0].to_concept_name).toEqual(event.target.value);
+      done();
+    });
   });
 
   it('should test componentWillReceiveProps', () => {
@@ -716,6 +697,11 @@ describe('Test suite for mappings on existing concepts', () => {
   });
 
   it('should call removeEditedConceptMappingAction function to remove mapping', () => {
+    const newProps = {
+      ...props,
+      updateConcept: jest.fn().mockResolvedValueOnce(false),
+    };
+    wrapper = mount(<Router><EditConcept {...newProps} /></Router>);
     const answerUrl = 'url';
     const frontEndUniqueKey = 'unique';
     const answer = {};
@@ -726,6 +712,30 @@ describe('Test suite for mappings on existing concepts', () => {
     submitForm.simulate('submit', { preventDefault: jest.fn() });
     expect(props.removeEditedConceptMappingAction)
       .toHaveBeenCalledWith({ references: [answerUrl] });
+  });
+
+  it('should redirect user to previous page when concept update is successfull', () => {
+    const newProps = {
+      ...props,
+      updateConcept: jest.fn().mockResolvedValueOnce(true),
+    };
+
+    const editWrapper = mount(<EditConcept {...newProps} />);
+    const instance = editWrapper.instance();
+    props.history.goBack.mockClear();
+    instance.updateConceptReference = jest.fn().mockResolvedValueOnce(true);
+
+    expect(newProps.updateConcept).not.toHaveBeenCalled();
+    expect(instance.updateConceptReference).not.toHaveBeenCalled();
+    expect(props.history.goBack).not.toHaveBeenCalled();
+
+    instance.handleSubmit({ preventDefault: jest.fn() });
+
+    setImmediate(() => {
+      expect(newProps.updateConcept).toHaveBeenCalled();
+      expect(instance.updateConceptReference).toHaveBeenCalled();
+      expect(props.history.goBack).toHaveBeenCalled();
+    });
   });
 
   describe('updateConceptReference', () => {
@@ -769,5 +779,30 @@ describe('Test suite for mappings on existing concepts', () => {
     editWrapper.setProps(newProps);
     expect(spy).toHaveBeenCalled();
     expect(instance.state.datatype).toEqual(newProps.existingConcept.datatype);
+  });
+
+  describe('unRetireExistingMappings', () => {
+    it('should call unRetireMapping with the right mapping url', async () => {
+      const newProps = {
+        ...props,
+        unretireMapping: jest.fn(),
+      };
+
+      const mockConcept = newMappings[0];
+      const freshMappings = [
+        { ...mockConcept, isNew: true },
+        { ...mockConcept, isNew: true, to_concept_code: 'newConceptCode' },
+      ];
+      const retired = [
+        { ...mockMappings[0], to_concept_code: mockConcept.to_concept_code, retired: true },
+      ];
+
+      const editWrapper = mount(<EditConcept {...newProps} />);
+      const instance = editWrapper.instance();
+
+      expect(newProps.unretireMapping).not.toHaveBeenCalled();
+      await instance.unRetireExistingMappings(freshMappings, retired);
+      expect(newProps.unretireMapping).toHaveBeenCalledWith(retired[0].url);
+    });
   });
 });
