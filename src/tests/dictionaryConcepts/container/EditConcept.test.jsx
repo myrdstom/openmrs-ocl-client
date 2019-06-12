@@ -237,11 +237,11 @@ describe('Test suite for dictionary concepts components', () => {
     expect(submitForm.length).toEqual(1);
     wrapper.find('EditConcept').setState(sampleConcept);
     const instance = wrapper.find('EditConcept').instance();
-    const spy = jest.spyOn(instance, 'handleSubmit');
+    instance.handleSubmit = jest.fn();
     instance.forceUpdate();
     wrapper.update();
     submitForm.simulate('submit', { preventDefault: jest.fn() });
-    expect(spy).toHaveBeenCalled();
+    expect(instance.handleSubmit).toHaveBeenCalled();
   });
 
   it('it should handle submit event with invalid uuid', () => {
@@ -391,9 +391,13 @@ describe('Test suite for mappings on existing concepts', () => {
     createNewSetRow: createNewSetRowMock,
     ...editConceptProps,
   };
-  const wrapper = mount(<Router>
-    <EditConcept {...props} />
-  </Router>);
+  let wrapper;
+
+  beforeEach(() => {
+    wrapper = mount(<Router>
+      <EditConcept {...props} />
+    </Router>);
+  });
 
   it('should call addMappingRow function', () => {
     const instance = wrapper.find('EditConcept').instance();
@@ -435,7 +439,7 @@ describe('Test suite for mappings on existing concepts', () => {
       retired: false,
       url: '9999',
     };
-    expect(instance.state.mappings.filter(_ => _ != null).length).toEqual(2);
+    expect(instance.state.mappings.filter(_ => _ != null).length).toEqual(1);
     instance.removeUnsavedMappingRow(url);
     expect(instance.state.mappings[1].retired).toEqual(true);
   });
@@ -530,40 +534,6 @@ describe('Test suite for mappings on existing concepts', () => {
     wrapper.find('.btn-danger').at(0).simulate('click');
     wrapper.find('Button #sub-cancel').simulate('click');
     expect(spy).toHaveBeenCalled();
-  });
-
-  it('should call updateEventListener function', () => {
-    const event = {
-      target: {
-        tabIndex: 0,
-        name: 'to_concept_code',
-        value: 'a234',
-      },
-    };
-    const url = '1234';
-    const instance = wrapper.find('EditConcept').instance();
-    instance.updateEventListener({ target: { tabIndex: 0, name: INTERNAL_MAPPING_DEFAULT_SOURCE, value: '' } });
-    instance.updateEventListener(event, url);
-    expect(instance.state.mappings[0].to_concept_code).not.toEqual(null);
-  });
-
-  it('should call updateEventListener function on source change', () => {
-    const event = {
-      target: {
-        tabIndex: 0,
-        name: 'source',
-        value: '',
-      },
-    };
-    const url = '1234';
-    const { value } = event.target;
-    const instance = wrapper.find('EditConcept').instance();
-    const spy = jest.spyOn(instance, 'updateEventListener');
-    instance.updateEventListener({ target: { tabIndex: 0, name: INTERNAL_MAPPING_DEFAULT_SOURCE, value: '' } });
-    instance.updateEventListener(event, url);
-    wrapper.find('.form-control').at(0).simulate('select');
-    expect(spy).toHaveBeenCalled();
-    expect(instance.state.mappings[0].to_concept_code).toEqual(value);
   });
 
   it('should call updateEventListener function with internal mapping', () => {
@@ -716,6 +686,11 @@ describe('Test suite for mappings on existing concepts', () => {
   });
 
   it('should call removeEditedConceptMappingAction function to remove mapping', () => {
+    const newProps = {
+      ...props,
+      updateConcept: jest.fn().mockResolvedValueOnce(false),
+    };
+    wrapper = mount(<Router><EditConcept {...newProps} /></Router>);
     const answerUrl = 'url';
     const frontEndUniqueKey = 'unique';
     const answer = {};
